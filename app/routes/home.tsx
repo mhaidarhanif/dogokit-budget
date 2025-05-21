@@ -1,11 +1,5 @@
 import { useEffect, useState } from "react";
 import type { Route } from "./+types/home";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-);
 
 interface Transaction {
   id: string;
@@ -39,17 +33,9 @@ export default function Home() {
 
   async function fetchTransactions() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('userId', user.id)
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      setTransactions(data || []);
+      const response = await fetch('/api/transactions');
+      const data = await response.json();
+      setTransactions(data);
     } catch (error) {
       console.error('Error fetching transactions:', error);
     } finally {
@@ -60,20 +46,20 @@ export default function Home() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase.from('transactions').insert([
-        {
+      const response = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           amount: Number(formData.amount),
           description: formData.description,
           category: formData.category,
           type: formData.type,
-          userId: user.id,
-        },
-      ]);
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Failed to add transaction');
 
       setFormData({
         amount: "",
