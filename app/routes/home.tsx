@@ -26,6 +26,12 @@ export function meta({}: Route.MetaArgs) {
 export default function Home() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    amount: "",
+    description: "",
+    category: "",
+    type: "expense" as "income" | "expense",
+  });
 
   useEffect(() => {
     fetchTransactions();
@@ -51,10 +57,91 @@ export default function Home() {
     }
   }
 
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase.from('transactions').insert([
+        {
+          amount: Number(formData.amount),
+          description: formData.description,
+          category: formData.category,
+          type: formData.type,
+          userId: user.id,
+        },
+      ]);
+
+      if (error) throw error;
+
+      setFormData({
+        amount: "",
+        description: "",
+        category: "",
+        type: "expense",
+      });
+
+      fetchTransactions();
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+    }
+  }
+
   return (
     <main className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Budget Tracker</h1>
       
+      <form onSubmit={handleSubmit} className="mb-8 space-y-4 max-w-md">
+        <div>
+          <label className="block text-sm font-medium mb-1">Amount</label>
+          <input
+            type="number"
+            value={formData.amount}
+            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Description</label>
+          <input
+            type="text"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Category</label>
+          <input
+            type="text"
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Type</label>
+          <select
+            value={formData.type}
+            onChange={(e) => setFormData({ ...formData, type: e.target.value as "income" | "expense" })}
+            className="w-full p-2 border rounded"
+          >
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+        >
+          Add Transaction
+        </button>
+      </form>
+
       {loading ? (
         <p>Loading transactions...</p>
       ) : (
